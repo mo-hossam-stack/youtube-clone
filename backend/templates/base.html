@@ -1,0 +1,54 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}YouTube Clone{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/messages.css' %}">
+    <link rel="stylesheet" href="{% static 'css/buttons.css' %}">
+    <link rel="stylesheet" href="{% static 'css/forms.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">
+            <span class="brand-icon">▶</span>
+            YouTube Clone
+        </a>
+        <ul class="navbar-nav">
+            {% if user.is_authenticated %}
+                <li><a href="{% url 'videos:upload' %}" class="nav-link btn-upload">Upload</a></li>
+                <li><span class="nav-username">{{ user.username }}</span></li>
+                <li>
+                    <form method="post" action="{% url 'accounts:login' %}" class="logout-form">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn-outline logout-btn">Logout</button>
+                    </form>
+                </li>
+            {% else %}
+                <li><a href="{% url 'accounts:login' %}" class="nav-link">Sign In</a></li>
+                <li><a href="{% url 'accounts:register' %}" class="nav-link btn-primary">Sign Up</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    <main class="main-content">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="message {{message.tags}}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %} 
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
