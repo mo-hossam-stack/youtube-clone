@@ -1,5 +1,6 @@
 from django import forms
 from django.core.validators import FileExtensionValidator
+import magic
 
 class VideoUploadForm(forms.Form):
     title = forms.CharField( 
@@ -56,9 +57,30 @@ class VideoUploadForm(forms.Form):
                 "Video must be under 100 MB."
             )
 
-        if video.content_type not in self.ALLOWED_MIME_TYPES:
+        try:
+            mime = magic.from_buffer(
+                video.read(4096),
+                mime=True,
+            )
+            video.seek(0)
+        except Exception:
             raise forms.ValidationError(
-                "This video type is not allowed."
+                "Unable to validate uploaded file."
+            )
+
+        if mime not in self.ALLOWED_MIME_TYPES:
+            raise forms.ValidationError(
+                "Invalid or unsupported video file."
             )
 
         return video
+    
+    def clean_title(self):
+        title = self.cleaned_data["title"].strip()
+
+        if len(title) < 3:
+            raise forms.ValidationError(
+                "Title is too short"
+            )
+
+        return title
