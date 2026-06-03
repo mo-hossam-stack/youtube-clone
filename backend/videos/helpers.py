@@ -11,6 +11,10 @@ def get_optimized_video_url(base_url: str) -> str:
     return f"{base_url}?tr=q-50,f-auto"
 
 
+def get_streaming_url(base_url: str) -> str:
+    return f"{base_url}/ik-master.m3u8?tr=sr-240_360_480_720_1080"
+
+
 def upload_video(file_data: bytes, file_name: str, folder: str = "videos") -> dict:
     public_key = os.environ.get("IMAGEKIT_PUBLIC_KEY")
 
