@@ -5,6 +5,11 @@ from imagekitio import ImageKit
 def get_imagekit_client():
     return ImageKit()
 
+def get_optimized_video_url(base_url: str) -> str:
+    if "?" in base_url:
+        return f"{base_url}&tr=q-50,f-auto"
+    return f"{base_url}?tr=q-50,f-auto"
+
 
 def upload_video(file_data: bytes, file_name: str, folder: str = "videos") -> dict:
     public_key = os.environ.get("IMAGEKIT_PUBLIC_KEY")
