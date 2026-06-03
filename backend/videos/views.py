@@ -9,6 +9,11 @@ from .helpers import upload_video, upload_thumbnail
 
 
 
+def video_list(request):
+    videos = Video.objects.all()
+    return render(request, 'videos/list.html', {"videos": videos})
+
+
 @login_required
 @require_POST
 def video_upload(request):
