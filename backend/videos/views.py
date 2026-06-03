@@ -8,6 +8,9 @@ from .forms import VideoUploadForm
 from .helpers import upload_video, upload_thumbnail
 
 
+def video_detail(request, video_id):
+    video = get_object_or_404(Video.objects, id=video_id)
+    return render(request, "videos/detail.html", {"video": video})
 
 def video_list(request):
     videos = Video.objects.all()
