@@ -55,3 +55,40 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+const videoPlayer = document.getElementById("video-player")
+const videoError = document.getElementById("video-error")
+const streamingUrl = '{{ video.streaming_url }}'
+const fallbackUrl = '{{ video.optimized_url }}'
+
+if (Hls.isSupported()) {
+    const hls = new Hls({
+        startLevel: -1,
+        capLevelToPlayerSize: true
+    })
+    hls.loadSource(streamingUrl)
+    hls.attachMedia(videoPlayer)
+    hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.datal) {
+            videoPlayer.src = fallbackUrl
+        }
+    })
+} else if (videoPlayer.canPlayType("application/vnd.apple.mpegurl")) {//ios
+    videoPlayer.src = streamingUrl
+} else {//default
+    videoPlayer.src = fallbackUrl
+}
+
+videoPlayer.addEventListener("error", () => {
+    videoPlayer.style.display = "none"
+    videoError.style.display = "flex"
+})
+
+
+
+</script>
+
+{% endblock %}
