@@ -17,6 +17,11 @@ def video_list(request):
     return render(request, 'videos/list.html', {"videos": videos})
 
 
+def channel_videos(request, username):
+    videos = Video.objects.filter(user__username=username)
+    return render(request, "videos/channel.html", {"videos": videos, "channel_name": username})
+
+
 @login_required
 @require_POST
 def video_upload(request):
