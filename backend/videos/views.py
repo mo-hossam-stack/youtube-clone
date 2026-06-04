@@ -5,7 +5,7 @@ from django.views.decorators.http import require_POST
 
 from .models import Video
 from .forms import VideoUploadForm
-from .helpers import upload_video, upload_thumbnail
+from .helpers import upload_video, upload_thumbnail , delete_video
 
 
 def video_detail(request, video_id):
@@ -77,3 +77,18 @@ def video_upload(request):
 def video_upload_page(request):
     return render(request, "videos/upload.html", {"form": VideoUploadForm()})
 
+
+@login_required
+@require_POST
+def delete_video(request, video_id):
+    video = get_object_or_404(Video, id=video_id, user=request.user)
+
+    try:
+        delete_video(video.file_id)
+    except Exception as e:
+        print(e)
+        pass
+
+    video.delete()
+
+    return JsonResponse({"success": True, "message": "video deleted"})
