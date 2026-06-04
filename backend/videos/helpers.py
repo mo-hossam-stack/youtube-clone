@@ -28,6 +28,14 @@ def _get_watermark_transformation(username: str):
         "l-end"
     )
 
+def add_image_watermark(
+        base_url: str, username: str = None
+) -> str:
+    transformations = "".join(_get_watermark_transformation(username))
+
+    return f"{base_url}?tr={transformations}"
+
+
 def get_thumbnail_url(
         base_url: str, username: str = None
 ) -> str:
