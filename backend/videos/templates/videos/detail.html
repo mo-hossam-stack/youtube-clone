@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+{{ video.title }} - YouTube Clone
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/videos.css' %}">
+<link rel="stylesheet" href="{% static 'css/videoplayer.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="video-player-container">
+    <div class="video-player">
+        <video id="video-player" controls preload="none" poster="{{ video.display_thumbnail_url }}"></video>
+        <div id="video-error" class="video-error" style="display: none;">
+            <span class="error-icon">⚠</span>
+            <p>Video Unavailable</p>
+            <small>The video file could not be loaded.</small>
+        </div>
+    </div>
+    <div class="video-details">
+        <h1>{{ video.title }}</h1>
+
+        <div class="video-stats">
+            <span class="video-stats-left">{{ video.views }} views | {{ video.created_at|date:"M d, Y" }}</span>
+            <div class="video-actions">
+                <button class="vote-btn" data-vote="like" onclick="vote({{ video.id }}, 'like')">
+                    👍 <span id="like-count">{{ video.likes }}</span>
+                </button>
+                <button class="vote-btn" data-vote="dislike" onclick="vote({{ video.id }}, 'dislike')">
+                    👎 <span id="dislike-count">{{ video.dislikes }}</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="video-channel">
+            <div class="channel-avatar">{{ video.user.username|slice:":1"}}</div>
+            <a href="{% url 'videos:channel' video.user.username %}" class="channel-name">{{ video.user.username }}</a>
+        </div>
+
+        {% if video.description %}
+        <p class="video-description">{{ video.description }}</p>
+        {% endif %}
+
+
+        {% if request.user == video.user %}
+        <div class="video-owner-actions">
+            <button class="delete-btn" type="button" onclick="() => {}">Delete</button>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
