@@ -10,6 +10,9 @@ from .helpers import upload_video, upload_thumbnail , delete_video
 
 def video_detail(request, video_id):
     video = get_object_or_404(Video.objects, id=video_id)
+    video.views += 1
+    video.save(update_fields=["views"])
+
     return render(request, "videos/detail.html", {"video": video})
 
 def video_list(request):
