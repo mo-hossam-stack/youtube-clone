@@ -27,10 +27,10 @@
         <div class="video-stats">
             <span class="video-stats-left">{{ video.views }} views | {{ video.created_at|date:"M d, Y" }}</span>
             <div class="video-actions">
-                <button class="vote-btn" data-vote="like" onclick="vote({{ video.id }}, 'like')">
+                <button class="vote-btn {% if user_vote == 1 %}active{% endif %}" data-vote="like" onclick="vote({{ video.id }}, 'like')">
                     👍 <span id="like-count">{{ video.likes }}</span>
                 </button>
-                <button class="vote-btn" data-vote="dislike" onclick="vote({{ video.id }}, 'dislike')">
+                <button class="vote-btn {% if user_vote == -1 %}active{% endif %}" data-vote="dislike" onclick="vote({{ video.id }}, 'dislike')">
                     👎 <span id="dislike-count">{{ video.dislikes }}</span>
                 </button>
             </div>
@@ -100,6 +100,28 @@ function deleteVideo(videoId) {
 }
 
 
+function vote(videoId, voteType) {
+    {% if not user.is_authenticated %}
+    window.location.href = '{% url "accounts:login"%}'
+    return
+    {% endif %}
+
+    fetch(`/${videoId}/vote/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded", "X-CSRFToken": csrf
+        },
+        body: `vote=${voteType}`
+    })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById("like-count").textContent = data.likes
+            document.getElementById("dislike-count").textContent = data.dislikes
+            document.querySelectorAll(".vote-btn").forEach(btn => btn.classList.remove("active"))
+            if (data.user_vote === 1) document.querySelector('[data-vote="like"]').classList.add("active")
+            else if (data.user_vote === -1) document.querySelector('[data-vote="dislike"]').classList.add("active")
+        })
+}
 
 </script>
 
