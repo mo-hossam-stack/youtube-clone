@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from .models import Video
+from .models import Video , VideoLike
 from .forms import VideoUploadForm
 from .helpers import upload_video, upload_thumbnail , delete_video
 
@@ -95,3 +95,51 @@ def delete_video(request, video_id):
     video.delete()
 
     return JsonResponse({"success": True, "message": "video deleted"})
+
+
+@login_required
+@require_POST
+def video_vote(request, video_id):
+    video = get_object_or_404(Video, id=video_id)
+    vote_type = request.POST.get("vote")
+
+    if vote_type not in ["like", "dislike"]:
+        return JsonResponse({"success": False, "error": "Invalid vote"}, status=400)
+
+    value = VideoLike.LIKE if vote_type == "like" else VideoLike.DISLIKE
+
+    existing_vote = VideoLike.objects.filter(user=request.user, video=video).first()
+
+    if existing_vote:
+        if existing_vote.value == value:
+            if value == VideoLike.LIKE:
+                video.likes -= 1
+            else:
+                video.dislikes -= 1
+            existing_vote.delete()
+            user_vote = None
+        else:
+            if value == VideoLike.LIKE:
+                video.likes += 1
+                video.dislikes -= 1
+            else:
+                video.likes -=1
+                video.dislikes += 1
+            existing_vote.value = value
+            existing_vote.save()
+            user_vote = value
+    else:
+        VideoLike.objects.create(user=request.user, video=video, value=value)
+        if value == VideoLike.LIKE:
+            video.likes += 1
+        else:
+            video.dislikes += 1
+        user_vote = value
+
+    video.save(update_fields=["likes", "dislikes"])
+
+    return JsonResponse({
+        "likes": video.likes,
+        "dislikes": video.dislikes,
+        "user_vote": user_vote
+    })
