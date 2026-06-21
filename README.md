@@ -1,6 +1,7 @@
-<picture src="https://img.shields.io/badge/status-production--ready-ff0000?style=for-the-badge&logo=youtube" alt="Status" />
-<picture src="https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github" alt="Build" />
-
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Django](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)](https://djangoproject.com)
+[![ImageKit](https://img.shields.io/badge/CDN-ImageKit-00A7FF)](https://imagekit.io)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 <br/>
 
 # V Platform
