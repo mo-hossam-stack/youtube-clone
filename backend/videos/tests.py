@@ -229,3 +229,17 @@ class RateLimitAuthTests(TestCase):
         data = {'username': 'fresh', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
         resp = self.client.post(self.register_url, data)
         self.assertNotEqual(resp.status_code, 429, "Register should not be affected by login rate limit")
+
+
+class RateLimitGETRequestsTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(username='getuser', password='pass1234')
+        self.client.login(username='getuser', password='pass1234')
+
+    @override_settings(RATE_LIMIT_UPLOAD='1/m', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_LOGIN='5/m', RATE_LIMIT_REGISTER='5/m')
+    def test_get_requests_not_rate_limited(self):
+        url = reverse('videos:upload')
+        for _ in range(10):
+            resp = self.client.get(url)
+            self.assertNotEqual(resp.status_code, 429, "GET requests should not be rate limited")
