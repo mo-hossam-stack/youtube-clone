@@ -139,3 +139,93 @@ class RateLimitVoteTests(TestCase):
             self.assertNotEqual(resp.status_code, 429, f"Authenticated vote {i+1} should have own limit")
 
 
+class RateLimitAuthTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        User.objects.create_user(username='existing', password='ComplexPass123!')
+        self.login_url = reverse('accounts:login')
+        self.register_url = reverse('accounts:register')
+
+    @override_settings(RATE_LIMIT_LOGIN='3/m', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_REGISTER='5/m')
+    def test_login_exceeds_limit_returns_429(self):
+        data = {'username': 'existing', 'password': 'wrongpass'}
+        for i in range(3):
+            resp = self.client.post(self.login_url, data)
+            self.assertNotEqual(resp.status_code, 429, f"Login {i+1} should not be rate limited yet")
+
+        resp = self.client.post(self.login_url, data)
+        self.assertEqual(resp.status_code, 429)
+
+    @override_settings(RATE_LIMIT_LOGIN='3/m', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_REGISTER='5/m')
+    def test_login_retry_after_header(self):
+        data = {'username': 'existing', 'password': 'wrongpass'}
+        for _ in range(4):
+            self.client.post(self.login_url, data)
+
+        resp = self.client.post(self.login_url, data)
+        self.assertEqual(resp.status_code, 429)
+        self.assertIn('Retry-After', resp.headers)
+        self.assertGreaterEqual(int(resp.headers['Retry-After']), 1)
+
+    @override_settings(RATE_LIMIT_LOGIN='2/3s', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_REGISTER='5/m')
+    def test_login_limit_resets_after_window(self):
+        data = {'username': 'existing', 'password': 'wrongpass'}
+        for _ in range(2):
+            self.client.post(self.login_url, data)
+        resp = self.client.post(self.login_url, data)
+        self.assertEqual(resp.status_code, 429)
+
+        time.sleep(3.5)
+
+        resp = self.client.post(self.login_url, data)
+        self.assertNotEqual(resp.status_code, 429, "Login rate limit should reset after window")
+
+    @override_settings(RATE_LIMIT_REGISTER='3/m', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_LOGIN='5/m')
+    def test_register_exceeds_limit_returns_429(self):
+        data = {'username': 'newuser', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+        for i in range(3):
+            resp = self.client.post(self.register_url, data)
+            self.assertNotEqual(resp.status_code, 429, f"Register {i+1} should not be rate limited yet")
+            data['username'] = f'newuser{i+1}'
+
+        resp = self.client.post(self.register_url, data)
+        self.assertEqual(resp.status_code, 429)
+
+    @override_settings(RATE_LIMIT_REGISTER='3/m', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_LOGIN='5/m')
+    def test_register_retry_after_header(self):
+        for i in range(4):
+            data = {'username': f'reguser{i}', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+            self.client.post(self.register_url, data)
+
+        data = {'username': 'final', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+        resp = self.client.post(self.register_url, data)
+        self.assertEqual(resp.status_code, 429)
+        self.assertIn('Retry-After', resp.headers)
+
+    @override_settings(RATE_LIMIT_REGISTER='2/3s', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m', RATE_LIMIT_LOGIN='5/m')
+    def test_register_limit_resets_after_window(self):
+        for i in range(2):
+            data = {'username': f'resetuser{i}', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+            self.client.post(self.register_url, data)
+        data = {'username': 'shouldfail', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+        resp = self.client.post(self.register_url, data)
+        self.assertEqual(resp.status_code, 429)
+
+        time.sleep(3.5)
+
+        data = {'username': 'shouldwork', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+        resp = self.client.post(self.register_url, data)
+        self.assertNotEqual(resp.status_code, 429, "Register rate limit should reset after window")
+
+    @override_settings(RATE_LIMIT_LOGIN='3/m', RATE_LIMIT_REGISTER='3/m', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_VOTE='60/m')
+    def test_login_and_register_have_independent_limits(self):
+        data = {'username': 'existing', 'password': 'wrongpass'}
+        for _ in range(3):
+            self.client.post(self.login_url, data)
+
+        resp = self.client.post(self.login_url, data)
+        self.assertEqual(resp.status_code, 429)
+
+        data = {'username': 'fresh', 'password1': 'ComplexPass123!', 'password2': 'ComplexPass123!'}
+        resp = self.client.post(self.register_url, data)
+        self.assertNotEqual(resp.status_code, 429, "Register should not be affected by login rate limit")
