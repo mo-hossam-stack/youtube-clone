@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.middleware.ThrottleMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -128,3 +129,19 @@ LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 LOGIN_URL = "/accounts/login/"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'rate-limit-cache',
+    }
+}
+
+RATELIMIT_ENABLE = True
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_FAIL_VIEW = False  # We handle 429 via middleware
+
+RATE_LIMIT_UPLOAD = '5/h'
+RATE_LIMIT_VOTE = '60/m'
+RATE_LIMIT_LOGIN = '5/m'
+RATE_LIMIT_REGISTER = '5/m'
