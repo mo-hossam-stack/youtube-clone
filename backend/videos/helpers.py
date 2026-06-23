@@ -1,48 +1,80 @@
 import os
+from urllib.parse import urlparse
 from imagekitio import ImageKit
 
 
 def get_imagekit_client():
     return ImageKit()
 
+
+def _get_url_endpoint(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _build_url(src: str, transformation: list = None, signed: bool = True, expires_in: int = None) -> str:
+    client = get_imagekit_client()
+    return client.helper.build_url(
+        src=src,
+        url_endpoint=_get_url_endpoint(src),
+        transformation=transformation,
+        signed=signed,
+        expires_in=expires_in,
+    )
+
+
 def get_optimized_video_url(base_url: str) -> str:
-    if "?" in base_url:
-        return f"{base_url}&tr=q-50,f-auto"
-    return f"{base_url}?tr=q-50,f-auto"
+    return _build_url(
+        base_url,
+        transformation=[{"quality": 50, "format": "auto"}],
+    )
 
 
 def get_streaming_url(base_url: str) -> str:
-    return f"{base_url}/ik-master.m3u8?tr=sr-240_360_480_720_1080"
+    hls_url = base_url.rstrip("/") + "/ik-master.m3u8"
+    return _build_url(
+        hls_url,
+        transformation=[{"streaming_resolutions": ["240", "360", "480", "720", "1080"]}],
+    )
 
 
 def _get_watermark_transformation(username: str):
-    return (
-        "l-text,",
-        f"i-{username},",
-        "lfo-bottom_left,",
-        "lx-10,ly-10,",
-        "fs-32,",
-        "co-FFFFFF,",
-        "bg-00000060,",
-        "pa-4_8,",
-        "l-end"
-    )
+    if not username:
+        return None
+    return [{
+        "overlay": {
+            "type": "text",
+            "text": username,
+            "position": {
+                "x": 10,
+                "y": 10,
+                "focus": "bottom_left",
+            },
+            "transformation": [{
+                "font_size": 32,
+                "font_color": "FFFFFF",
+                "background": "00000060",
+                "padding": "4_8",
+            }],
+        },
+    }]
+
 
 def add_image_watermark(
         base_url: str, username: str = None
 ) -> str:
-    transformations = "".join(_get_watermark_transformation(username))
+    return _build_url(
+        base_url,
+        transformation=_get_watermark_transformation(username),
+    )
 
-    return f"{base_url}?tr={transformations}"
 
-
-def get_thumbnail_url(
-        base_url: str, username: str = None
-) -> str:
-    transformations = "".join(_get_watermark_transformation(username))
-
-    return f"{base_url}/ik-thumbnail.jpg?tr={transformations}"
-
+def get_thumbnail_url(base_url: str, username: str = None) -> str:
+    thumb_url = base_url.rstrip("/") + "/ik-thumbnail.jpg"
+    return _build_url(
+        thumb_url,
+        transformation=_get_watermark_transformation(username),
+    )
 
 
 def upload_video(file_data: bytes, file_name: str, folder: str = "videos") -> dict:
