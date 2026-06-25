@@ -29,6 +29,9 @@ class ThrottleMiddleware:
 
     def __call__(self, request):
         if request.method != 'POST':
+            response = self._apply_get_rate_limits(request)
+            if response is not None:
+                return response
             return self.get_response(request)
 
         response = self._apply_rate_limits(request)
@@ -54,13 +57,24 @@ class ThrottleMiddleware:
 
         return None
 
-    def _check_limit(self, request, key, rate, group):
+    def _apply_get_rate_limits(self, request):
+        path = request.path_info
+
+        if re.match(r'^\d+$', path.strip('/')):
+            return self._check_limit(
+                request, 'ip', settings.RATE_LIMIT_VIEW_DETAIL, 'view_detail',
+                methods=('GET',),
+            )
+
+        return None
+
+    def _check_limit(self, request, key, rate, group, methods=('POST',)):
         limited = is_ratelimited(
             request,
             group=group,
             key=key,
             rate=rate,
-            method=('POST',),
+            method=methods,
             increment=True,
         )
         if limited:
