@@ -2,17 +2,77 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
+from datetime import timedelta
 
-from .models import Video , VideoLike
+from .models import Video, VideoLike, VideoView
 from .forms import VideoUploadForm
-from .helpers import upload_video, upload_thumbnail , delete_video
+from .helpers import upload_video, upload_thumbnail, delete_video
+
+VIEW_DEDUP_HOURS = 24
 
 
 def video_detail(request, video_id):
     video = get_object_or_404(Video.objects, id=video_id)
-    video.views += 1
-    video.save(update_fields=["views"])
     user_vote = None
+
+    should_count = True
+
+    if request.user.is_authenticated and request.user == video.user:
+        should_count = False
+
+    if should_count:
+        if not request.session.session_key:
+            request.session.create()
+
+        window = timezone.now() - timedelta(hours=VIEW_DEDUP_HOURS)
+
+        if request.user.is_authenticated:
+            recent = VideoView.objects.filter(
+                user=request.user,
+                video=video,
+                created_at__gte=window,
+            ).exists()
+        else:
+            recent = VideoView.objects.filter(
+                session_key=request.session.session_key,
+                video=video,
+                created_at__gte=window,
+            ).exists()
+
+        if not recent:
+            with transaction.atomic():
+                if request.user.is_authenticated:
+                    already_counted = VideoView.objects.filter(
+                        user=request.user,
+                        video=video,
+                        created_at__gte=window,
+                    ).exists()
+                else:
+                    already_counted = VideoView.objects.filter(
+                        session_key=request.session.session_key,
+                        video=video,
+                        created_at__gte=window,
+                    ).exists()
+
+                if not already_counted:
+                    Video.objects.filter(pk=video.pk).update(
+                        views=F("views") + 1
+                    )
+                    VideoView.objects.create(
+                        user=request.user if request.user.is_authenticated else None,
+                        video=video,
+                        session_key=request.session.session_key,
+                        ip_address=(
+                            request.META.get("HTTP_X_FORWARDED_FOR", "")
+                            .split(",")[0]
+                            .strip()
+                            or request.META.get("REMOTE_ADDR")
+                        ),
+                    )
+
     if request.user.is_authenticated:
         like = VideoLike.objects.filter(user=request.user, video=video).first()
         if like:
