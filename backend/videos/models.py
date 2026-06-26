@@ -57,6 +57,24 @@ class Video(models.Model):
 
         
 
+class VideoView(models.Model):
+    user = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.CASCADE
+    )
+    video = models.ForeignKey(
+        Video, on_delete=models.CASCADE, related_name="views_log"
+    )
+    session_key = models.CharField(max_length=40, null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "video", "created_at"]),
+            models.Index(fields=["session_key", "video", "created_at"]),
+        ]
+
+
 class VideoLike(models.Model):
     LIKE = 1
     DISLIKE = -1
