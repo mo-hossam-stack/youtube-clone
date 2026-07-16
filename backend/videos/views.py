@@ -1,15 +1,19 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from datetime import timedelta
+import logging
 
 from .models import Video, VideoLike, VideoView
 from .forms import VideoUploadForm
 from .helpers import upload_video, upload_thumbnail, delete_video
+
+logger = logging.getLogger("videos.upload")
 
 VIEW_DEDUP_HOURS = 24
 
@@ -94,36 +98,58 @@ def channel_videos(request, username):
 @require_POST
 def video_upload(request):
     form = VideoUploadForm(request.POST, request.FILES)
-    if form.is_valid():
-        video_file = form.cleaned_data['video_file']
-        custom_thumbnail = request.POST.get("thumbnail_data", "")
+    if not form.is_valid():
+        errors = []
+        for field, field_errors in form.errors.items():
+            for error in field_errors:
+                errors.append(
+                    f"{field}: {error}" if field != "__all__" else error
+                )
+        return JsonResponse({"success": False, "errors": errors})
 
-        try:
+    video_file = form.cleaned_data["video_file"]
+    custom_thumbnail = request.POST.get("thumbnail_data", "")
+    result = None
+
+    try:
+        with transaction.atomic():
+            video_file.seek(0)
             result = upload_video(
                 file_data=video_file.read(),
-                file_name=video_file.name
+                file_name=video_file.storage_name,
             )
 
             thumbnail_url = ""
             if custom_thumbnail and custom_thumbnail.startswith("data:image"):
                 try:
-                    base_name = video_file.name.rsplit(".", 1)[0]
+                    base_name = video_file.storage_name.rsplit(".", 1)[0]
                     thumb_result = upload_thumbnail(
                         file_data=custom_thumbnail,
-                        file_name=base_name + "_thumb.jpg"
+                        file_name=base_name + "_thumb.jpg",
                     )
                     thumbnail_url = thumb_result["url"]
-                except Exception as e:
-                    print(e)
-                    pass
+                except Exception:
+                    logger.warning(
+                        "Thumbnail upload failed",
+                        extra={"upload_filename": video_file.name},
+                    )
 
+            metadata = video_file.metadata
             video = Video.objects.create(
                 user=request.user,
-                title=form.cleaned_data['title'],
-                description=form.cleaned_data['description'],
+                title=form.cleaned_data["title"],
+                description=form.cleaned_data["description"],
+                original_filename=video_file.name,
+                storage_filename=video_file.storage_name,
                 file_id=result["file_id"],
                 video_url=result["url"],
                 thumbnail_url=thumbnail_url,
+                sha256_hash=video_file.sha256_hash,
+                container=metadata["container"],
+                codec=metadata["codec"],
+                duration=metadata["duration"],
+                width=metadata["width"],
+                height=metadata["height"],
             )
 
             return JsonResponse({
@@ -131,14 +157,39 @@ def video_upload(request):
                 "video_id": video.id,
                 "message": "Video uploaded successfully"
             })
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
+    except ValidationError as e:
+        logger.warning(
+            "Upload rejected",
+            extra={
+                "reason": str(e),
+                "upload_filename": video_file.name,
+                "filesize": video_file.size,
+                "client_ip": request.META.get("REMOTE_ADDR"),
+            },
+        )
+        return JsonResponse({"success": False, "error": str(e)})
 
-    errors = []
-    for field, field_errors in form.errors.items():
-        for error in field_errors:
-            errors.append(f"{field}: {error}" if field != "__all__" else error)
-    return JsonResponse({"success": False, "errors": ";".join(errors)})
+    except Exception:
+        if result is not None:
+            try:
+                delete_video(result["file_id"])
+            except Exception:
+                logger.error(
+                    "Failed to clean up ImageKit orphan",
+                    extra={"file_id": result.get("file_id")},
+                )
+        logger.exception(
+            "Upload failed",
+            extra={
+                "upload_filename": video_file.name,
+                "filesize": video_file.size,
+                "user_id": request.user.id,
+                "client_ip": request.META.get("REMOTE_ADDR"),
+            },
+        )
+        return JsonResponse(
+            {"success": False, "error": "Upload failed. Please try again."}
+        )
 
 
 @login_required
