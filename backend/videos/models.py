@@ -14,9 +14,18 @@ class Video(models.Model):
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True)
 
+    original_filename = models.CharField(max_length=255, blank=True)
+    storage_filename = models.CharField(max_length=255, blank=True)
     file_id = models.CharField(max_length=200)
     video_url = models.URLField(max_length=500)
     thumbnail_url = models.URLField(max_length=500, blank=True)
+
+    sha256_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    container = models.CharField(max_length=32, blank=True)
+    codec = models.CharField(max_length=32, blank=True)
+    duration = models.PositiveIntegerField(default=0, help_text="Duration in seconds")
+    width = models.PositiveIntegerField(default=0)
+    height = models.PositiveIntegerField(default=0)
 
     views = models.PositiveIntegerField(default=0)
     likes = models.PositiveIntegerField(default=0)
