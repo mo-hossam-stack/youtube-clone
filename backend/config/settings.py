@@ -130,6 +130,23 @@ LOGOUT_REDIRECT_URL = "/"
 LOGIN_URL = "/accounts/login/"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
 
+# Upload validation
+UPLOAD_MAX_FILE_SIZE = 100 * 1024 * 1024
+UPLOAD_MAX_DURATION = 3600
+UPLOAD_MAX_WIDTH = 7680
+UPLOAD_MAX_HEIGHT = 4320
+UPLOAD_MAX_STREAMS = 5
+UPLOAD_FFPROBE_TIMEOUT = 10
+UPLOAD_ALLOWED_EXTENSIONS = ["mp4", "webm", "mov", "avi"]
+UPLOAD_ALLOWED_MIME_TYPES = {
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-msvideo",
+}
+UPLOAD_ALLOWED_CODECS = {"h264", "h265", "hevc", "vp8", "vp9", "av1"}
+UPLOAD_ALLOWED_CONTAINERS = {"mp4", "matroska,webm", "mov", "avi"}
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
