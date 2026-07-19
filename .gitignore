@@ -5,6 +5,9 @@
 __pycache__
 db.sqlite3
 media
+staticfiles/
+
+docker-compose.override.yml
 
 # Backup files # 
 *.bak 

@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
+import warnings
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
@@ -18,19 +20,38 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5f3*o+of_1w^gh1^)kyi4pbfhvuigy)z08#)xaayyi4v1p5^+q'
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-only-key-do-not-use-in-production"
+        warnings.warn(
+            "Using insecure dev SECRET_KEY. Set DJANGO_SECRET_KEY for production.",
+            stacklevel=2,
+        )
+    else:
+        raise ValueError(
+            "DJANGO_SECRET_KEY is required when DEBUG=False. "
+            "Generate one with: python -c \"from django.core.management.utils import "
+            "get_random_secret_key; print(get_random_secret_key())\""
+        )
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
+]
 
-ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:8000").split(",")
+    if o.strip()
+]
 
-
-# Application definition
+# PaaS SSL termination
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -45,6 +66,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -84,9 +106,71 @@ DATABASES = {
     }
 }
 
+try:
+    import dj_database_url
 
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        DATABASES["default"] = dj_database_url.config(
+            default=database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=False,
+        )
+except ImportError:
+    pass
+
+REDIS_URL = os.environ.get("REDIS_URL")
+
+if REDIS_URL:
+    try:
+        CACHES = {
+            "default": {
+                "BACKEND": "django_redis.cache.RedisCache",
+                "LOCATION": REDIS_URL,
+                "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                    "CONNECTION_POOL_KWARGS": {
+                        "max_connections": 50,
+                        "retry_on_timeout": True,
+                    },
+                    "SOCKET_CONNECT_TIMEOUT": 5,
+                    "SOCKET_TIMEOUT": 5,
+                    "RETRY_ON_TIMEOUT": True,
+                },
+                "KEY_PREFIX": "vplatform",
+                "TIMEOUT": 300,
+            }
+        }
+    except Exception:
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "rate-limit-cache",
+            }
+        }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "rate-limit-cache",
+        }
+    }
+
+
+if REDIS_URL:
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+
+
+CELERY_BROKER_URL = os.environ.get(
+    "CELERY_BROKER_URL", REDIS_URL or "redis://localhost:6379/1"
+)
+CELERY_RESULT_BACKEND = REDIS_URL or "redis://localhost:6379/2"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -121,9 +205,16 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
@@ -147,13 +238,6 @@ UPLOAD_ALLOWED_MIME_TYPES = {
 UPLOAD_ALLOWED_CODECS = {"h264", "h265", "hevc", "vp8", "vp9", "av1"}
 UPLOAD_ALLOWED_CONTAINERS = {"mp4", "matroska,webm", "mov", "avi"}
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'rate-limit-cache',
-    }
-}
-
 RATELIMIT_ENABLE = True
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_FAIL_VIEW = False  # We handle 429 via middleware
@@ -163,3 +247,49 @@ RATE_LIMIT_VOTE = '60/m'
 RATE_LIMIT_LOGIN = '5/m'
 RATE_LIMIT_REGISTER = '5/m'
 RATE_LIMIT_VIEW_DETAIL = '60/m'
+
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG" if DEBUG else "INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
+
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
