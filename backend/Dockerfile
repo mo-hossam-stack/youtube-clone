@@ -38,6 +38,9 @@ RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app \
     && chown -R app:app /app
 USER app
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]
+
 EXPOSE 8000
 
 WORKDIR /app/backend
