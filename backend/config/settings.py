@@ -119,7 +119,57 @@ try:
 except ImportError:
     pass
 
+REDIS_URL = os.environ.get("REDIS_URL")
 
+if REDIS_URL:
+    try:
+        CACHES = {
+            "default": {
+                "BACKEND": "django_redis.cache.RedisCache",
+                "LOCATION": REDIS_URL,
+                "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                    "CONNECTION_POOL_KWARGS": {
+                        "max_connections": 50,
+                        "retry_on_timeout": True,
+                    },
+                    "SOCKET_CONNECT_TIMEOUT": 5,
+                    "SOCKET_TIMEOUT": 5,
+                    "RETRY_ON_TIMEOUT": True,
+                },
+                "KEY_PREFIX": "vplatform",
+                "TIMEOUT": 300,
+            }
+        }
+    except Exception:
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "rate-limit-cache",
+            }
+        }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "rate-limit-cache",
+        }
+    }
+
+
+if REDIS_URL:
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+
+
+CELERY_BROKER_URL = os.environ.get(
+    "CELERY_BROKER_URL", REDIS_URL or "redis://localhost:6379/1"
+)
+CELERY_RESULT_BACKEND = REDIS_URL or "redis://localhost:6379/2"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
