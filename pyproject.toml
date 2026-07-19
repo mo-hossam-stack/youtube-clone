@@ -15,4 +15,5 @@ dependencies = [
     "django-redis>=5.4",
     "celery>=5.4",
     "gunicorn>=22.0",
+    "whitenoise>=6.8,<7",
 ]
