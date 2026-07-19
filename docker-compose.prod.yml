@@ -1,10 +1,6 @@
 services:
   web:
     env_file: ./backend/.env
-    environment:
-      - DJANGO_DEBUG=False
-      - WEB_CONCURRENCY=4
-    command: gunicorn config.wsgi:application --config gunicorn.conf.py
     restart: unless-stopped
 
   nginx:
