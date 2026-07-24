@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+Processing: {{ video.title }} - YouTube Clone
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/videos.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="video-player-container">
+    <div class="video-player" style="display:flex;align-items:center;justify-content:center;min-height:400px;background:#1a1a2e;border-radius:8px;">
+        <div style="text-align:center;padding:40px;">
+            <div id="spinner" style="margin-bottom:20px;">
+                <div style="width:48px;height:48px;border:4px solid #333;border-top:4px solid #3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;"></div>
+            </div>
+            <h2 style="color:#e0e0e0;margin-bottom:8px;">Video is being processed</h2>
+            <p style="color:#999;margin-bottom:16px;">Status: <strong id="status-text">{{ status }}</strong></p>
+            <p style="color:#666;font-size:14px;">This page will update automatically when scanning is complete.</p>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+(function() {
+    const videoId = {{ video.id }};
+    const statusText = document.getElementById('status-text');
+    let pollCount = 0;
+    const maxPolls = 120; // 10 minutes max
+
+    function pollStatus() {
+        if (pollCount >= maxPolls) {
+            statusText.textContent = 'Processing is taking longer than expected. Please check back later.';
+            return;
+        }
+
+        fetch(`/upload/${videoId}/status/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        })
+        .then(r => r.json())
+        .then(data => {
+            pollCount++;
+            if (data.status === 'safe') {
+                window.location.href = `/{{ video.id }}`;
+            } else if (data.status === 'rejected' || data.status === 'failed') {
+                statusText.textContent = data.status_display || data.status;
+                statusText.style.color = '#ef4444';
+                document.getElementById('spinner').innerHTML =
+                    '<div style="font-size:48px;">&#10060;</div>';
+            } else {
+                statusText.textContent = data.status_display || data.status;
+                setTimeout(pollStatus, 5000);
+            }
+        })
+        .catch(() => {
+            pollCount++;
+            setTimeout(pollStatus, 5000);
+        });
+    }
+
+    setTimeout(pollStatus, 3000);
+})();
+</script>
+
+{% endblock %}
