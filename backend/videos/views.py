@@ -9,9 +9,11 @@ from django.utils import timezone
 from datetime import timedelta
 import logging
 
-from .models import Video, VideoLike, VideoView
+from .models import Video, VideoLike, VideoView, VideoStatus
 from .forms import VideoUploadForm
-from .helpers import upload_video, upload_thumbnail, delete_video
+from .helpers import upload_thumbnail, delete_video
+from .quarantine import save_to_quarantine, delete_quarantine_file
+from .tasks import scan_video
 
 logger = logging.getLogger("videos.upload")
 
@@ -20,6 +22,14 @@ VIEW_DEDUP_HOURS = 24
 
 def video_detail(request, video_id):
     video = get_object_or_404(Video.objects, id=video_id)
+
+    # Streaming gate — only show fully scanned videos
+    if video.status != VideoStatus.SAFE:
+        return render(request, "videos/processing.html", {
+            "video": video,
+            "status": video.get_status_display(),
+        })
+
     user_vote = None
 
     should_count = True
@@ -109,30 +119,12 @@ def video_upload(request):
 
     video_file = form.cleaned_data["video_file"]
     custom_thumbnail = request.POST.get("thumbnail_data", "")
-    result = None
+    quarantine_path = None
 
     try:
         with transaction.atomic():
-            video_file.seek(0)
-            result = upload_video(
-                file_data=video_file.read(),
-                file_name=video_file.storage_name,
-            )
-
-            thumbnail_url = ""
-            if custom_thumbnail and custom_thumbnail.startswith("data:image"):
-                try:
-                    base_name = video_file.storage_name.rsplit(".", 1)[0]
-                    thumb_result = upload_thumbnail(
-                        file_data=custom_thumbnail,
-                        file_name=base_name + "_thumb.jpg",
-                    )
-                    thumbnail_url = thumb_result["url"]
-                except Exception:
-                    logger.warning(
-                        "Thumbnail upload failed",
-                        extra={"upload_filename": video_file.name},
-                    )
+            # Save to quarantine (local disk, not publicly accessible)
+            quarantine_path = save_to_quarantine(video_file, video_file.storage_name)
 
             metadata = video_file.metadata
             video = Video.objects.create(
@@ -141,23 +133,57 @@ def video_upload(request):
                 description=form.cleaned_data["description"],
                 original_filename=video_file.name,
                 storage_filename=video_file.storage_name,
-                file_id=result["file_id"],
-                video_url=result["url"],
-                thumbnail_url=thumbnail_url,
+                original_file_size=video_file.size,
                 sha256_hash=video_file.sha256_hash,
                 container=metadata["container"],
                 codec=metadata["codec"],
                 duration=metadata["duration"],
                 width=metadata["width"],
                 height=metadata["height"],
+                status=VideoStatus.PENDING,
+                quarantine_path=quarantine_path,
+            )
+
+            # Upload thumbnail synchronously (not a security concern)
+            if custom_thumbnail and custom_thumbnail.startswith("data:image"):
+                try:
+                    base_name = video_file.storage_name.rsplit(".", 1)[0]
+                    thumb_result = upload_thumbnail(
+                        file_data=custom_thumbnail,
+                        file_name=base_name + "_thumb.jpg",
+                    )
+                    video.thumbnail_url = thumb_result["url"]
+                    video.save(update_fields=["thumbnail_url"])
+                except Exception:
+                    logger.warning(
+                        "Thumbnail upload failed",
+                        extra={"upload_filename": video_file.name},
+                    )
+
+            # Dispatch async virus scan
+            scan_video.delay(video.id)
+
+            logger.info(
+                "upload.queued",
+                extra={
+                    "video_id": video.id,
+                    "user_id": request.user.id,
+                    "file_size": video.original_file_size,
+                    "sha256": video.sha256_hash[:12],
+                },
             )
 
             return JsonResponse({
                 "success": True,
                 "video_id": video.id,
-                "message": "Video uploaded successfully"
-            })
+                "status": "pending",
+                "message": "Video uploaded successfully. Scanning in progress.",
+            }, status=202)
+
     except ValidationError as e:
+        # Clean up quarantine file if it was written before the error
+        if quarantine_path:
+            delete_quarantine_file(quarantine_path)
         logger.warning(
             "Upload rejected",
             extra={
@@ -170,14 +196,8 @@ def video_upload(request):
         return JsonResponse({"success": False, "error": str(e)})
 
     except Exception:
-        if result is not None:
-            try:
-                delete_video(result["file_id"])
-            except Exception:
-                logger.error(
-                    "Failed to clean up ImageKit orphan",
-                    extra={"file_id": result.get("file_id")},
-                )
+        if quarantine_path:
+            delete_quarantine_file(quarantine_path)
         logger.exception(
             "Upload failed",
             extra={
@@ -258,4 +278,19 @@ def video_vote(request, video_id):
         "likes": video.likes,
         "dislikes": video.dislikes,
         "user_vote": user_vote
+    })
+
+
+@login_required
+@require_POST
+def upload_status(request, video_id):
+    """Return the scan status for an upload."""
+    video = get_object_or_404(Video, id=video_id, user=request.user)
+    return JsonResponse({
+        "video_id": video.id,
+        "status": video.status,
+        "status_display": video.get_status_display(),
+        "scan_result": video.scan_result,
+        "scanned_at": video.scanned_at.isoformat() if video.scanned_at else None,
+        "scan_duration_ms": video.scan_duration_ms,
     })
