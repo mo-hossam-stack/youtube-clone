@@ -172,6 +172,21 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
+CELERY_TASK_RETRY_BACKOFF = True
+CELERY_TASK_RETRY_BACKOFF_MAX = 240
+CELERY_TASK_TIME_LIMIT = 300
+CELERY_TASK_SOFT_TIME_LIMIT = 240
+
+# ClamAV
+CLAMAV_HOST = os.environ.get("CLAMAV_HOST", "clamav")
+CLAMAV_PORT = int(os.environ.get("CLAMAV_PORT", "3310"))
+CLAMAV_TIMEOUT = 120
+CLAMAV_MAX_RETRIES = 3
+
+# Quarantine
+QUARANTINE_DIR = BASE_DIR / "quarantine"
+QUARANTINE_EXPIRY_HOURS = 2
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
