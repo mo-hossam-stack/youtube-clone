@@ -59,7 +59,49 @@ services:
       timeout: 5s
       retries: 5
 
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: runtime
+    command: celery -A config worker -l info --concurrency=2
+    env_file: ./backend/.env
+    environment:
+      - DATABASE_URL=postgres://vplatform:${DB_PASSWORD:-devpassword}@postgres:5432/vplatform
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - DJANGO_DEBUG=True
+      - DJANGO_SECRET_KEY=dev-secret-key-not-for-prod
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - quarantine_data:/app/backend/quarantine
+    restart: unless-stopped
+
+  clamav:
+    image: clamav/clamav:latest
+    volumes:
+      - clamav_db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   static_files:
+  quarantine_data:
+  clamav_db:
