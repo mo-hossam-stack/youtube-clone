@@ -1,7 +1,17 @@
-[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Django](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)](https://djangoproject.com)
-[![ImageKit](https://img.shields.io/badge/CDN-ImageKit-00A7FF)](https://imagekit.io)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.13+" />
+  <img src="https://img.shields.io/badge/Django-6.0-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django 6.0" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
+  <img src="https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis 7" />
+  <img src="https://img.shields.io/badge/Celery-5-37814A?style=for-the-badge&logo=celery&logoColor=white" alt="Celery 5" />
+  <img src="https://img.shields.io/badge/ImageKit-CDN-00A7FF?style=for-the-badge" alt="ImageKit CDN" />
+  <img src="https://img.shields.io/badge/HLS.js-Adaptive%20Streaming-F28D1A?style=for-the-badge" alt="HLS.js" />
+  <img src="https://img.shields.io/badge/ClamAV-Antivirus-1A8E5C?style=for-the-badge" alt="ClamAV" />
+  <img src="https://img.shields.io/badge/Gunicorn-WSGI-499848?style=for-the-badge&logo=gunicorn&logoColor=white" alt="Gunicorn" />
+  <img src="https://img.shields.io/badge/Nginx-Proxy-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx" />
+  <img src="https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
+</p>
 <br/>
 
 # V Platform
