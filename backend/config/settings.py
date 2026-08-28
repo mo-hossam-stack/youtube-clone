@@ -167,6 +167,10 @@ CELERY_BROKER_URL = os.environ.get(
     "CELERY_BROKER_URL", REDIS_URL or "redis://localhost:6379/1"
 )
 CELERY_RESULT_BACKEND = REDIS_URL or "redis://localhost:6379/2"
+
+# Dev: with no Redis, run tasks synchronously in-process (no broker/worker needed).
+# Prod sets REDIS_URL, so eager stays off there.
+CELERY_TASK_ALWAYS_EAGER = not REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
