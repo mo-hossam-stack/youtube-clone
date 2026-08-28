@@ -13,6 +13,8 @@ COPY backend/ backend/
 RUN pip install --no-cache-dir uv \
     && uv sync --no-dev --frozen
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 RUN DJANGO_SECRET_KEY=build-placeholder DJANGO_DEBUG=True \
     python backend/manage.py collectstatic --noinput --settings=config.settings
 
