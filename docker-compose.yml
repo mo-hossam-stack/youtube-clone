@@ -92,7 +92,7 @@ services:
     volumes:
       - clamav_db:/var/lib/clamav
     healthcheck:
-      test: ["CMD", "clamdcheck", "localhost"]
+      test: ["CMD", "clamdscan", "--ping", "1"]
       interval: 30s
       timeout: 10s
       retries: 5
