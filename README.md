@@ -14,7 +14,7 @@
 </p>
 <br/>
 
-# V Platform
+# YOUTUBE-CLONE
 
 **A video sharing platform engineered for scale — from adaptive streaming to social engagement.**
 
@@ -395,11 +395,36 @@ This defense-in-depth means a user can't bypass browser validation and send a ma
 
 ## Quick Start
 
+### One-command dev runner (recommended)
+
+`scripts/dev.sh` starts everything you need and tears it down when you quit:
+
 ```bash
 git clone https://github.com/mo-hossam-stack/youtube-clone.git
 cd youtube-clone
 uv sync
-cp backend/.env.example backend/.env   # Add your CDN credentials
+cp backend/.env.example backend/.env   # Add your ImageKit credentials
+./scripts/dev.sh                       # starts ClamAV + runs Django
+```
+
+What it does:
+
+- Starts the ClamAV virus scanner (`docker compose up -d clamav`) — required, uploads fail with "Failed — Infrastructure Error" if it's down.
+- Runs Django with `.venv/bin/python backend/manage.py runserver`.
+- Stops ClamAV when you exit (`Ctrl+C`), freeing port `3310` so other projects can use it.
+
+> First run: ClamAV downloads its virus signature database (takes a few minutes). Wait until `docker compose exec clamav clamdscan --ping` returns `PONG` before uploading.
+
+Docker is required for the scanner. On Linux, if `docker` commands fail with a permission error, either run through sudo or add your user to the docker group once:
+`sudo usermod -aG docker $USER` (then log out/in).
+
+### Manual start (no scanner)
+
+```bash
+git clone https://github.com/mo-hossam-stack/youtube-clone.git
+cd youtube-clone
+uv sync
+cp backend/.env.example backend/.env   # Add your values
 cd backend && python manage.py makemigrations && python manage.py migrate
 python manage.py runserver
 ```
