@@ -89,6 +89,8 @@ services:
 
   clamav:
     image: clamav/clamav:latest
+    ports:
+      - "127.0.0.1:3310:3310"
     volumes:
       - clamav_db:/var/lib/clamav
     healthcheck:
