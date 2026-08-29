@@ -57,7 +57,7 @@ def _mark_rejected(video, virus_name, scan_duration_ms):
     ])
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=settings.CLAMAV_MAX_RETRIES, default_retry_delay=60)
 def scan_video(self, video_id):
     """Scan an uploaded video for viruses using ClamAV.
 
