@@ -27,10 +27,10 @@
         <div class="video-stats">
             <span class="video-stats-left">{{ video.views }} views | {{ video.created_at|date:"M d, Y" }}</span>
             <div class="video-actions">
-                <button class="vote-btn {% if user_vote == 1 %}active{% endif %}" data-vote="like" onclick="vote({{ video.id }}, 'like')">
+                <button class="vote-btn {% if user_vote == 1 %}active{% endif %}" data-vote="like" onclick="vote('{{ video.public_id }}', 'like')">
                     👍 <span id="like-count">{{ video.likes }}</span>
                 </button>
-                <button class="vote-btn {% if user_vote == -1 %}active{% endif %}" data-vote="dislike" onclick="vote({{ video.id }}, 'dislike')">
+                <button class="vote-btn {% if user_vote == -1 %}active{% endif %}" data-vote="dislike" onclick="vote('{{ video.public_id }}', 'dislike')">
                     👎 <span id="dislike-count">{{ video.dislikes }}</span>
                 </button>
             </div>
@@ -48,7 +48,7 @@
 
         {% if request.user == video.user %}
         <div class="video-owner-actions">
-            <button class="delete-btn" type="button" onclick="deleteVideo({{ video.id }})">Delete</button>
+            <button class="delete-btn" type="button" onclick="deleteVideo('{{ video.public_id }}')">Delete</button>
         </div>
         {% endif %}
 
