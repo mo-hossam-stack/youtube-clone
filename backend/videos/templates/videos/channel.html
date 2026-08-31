@@ -17,7 +17,7 @@
 {% if videos %}
 <div class="video-grid">
     {% for video in videos %}
-        <a href="{% url 'videos:detail' video.id %}" class="video-card">
+        <a href="{% url 'videos:detail' video.public_id %}" class="video-card">
             <div class="video-thumbnail">
                 <img src="{{ video.display_thumbnail_url }}" alt="{{ video.title }}" loading="lazy">
                 <span class="play-icon">▶</span>
