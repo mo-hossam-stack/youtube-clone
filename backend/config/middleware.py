@@ -52,7 +52,7 @@ class ThrottleMiddleware:
         if re.match(r'^/upload/submit/', path):
             return self._check_limit(request, 'user_or_ip', settings.RATE_LIMIT_UPLOAD, 'upload')
 
-        if re.match(r'^/\d+/vote/', path):
+        if re.match(r'^/[A-Za-z0-9]{8}/vote/', path):
             return self._check_limit(request, 'user_or_ip', settings.RATE_LIMIT_VOTE, 'vote')
 
         return None
@@ -60,7 +60,7 @@ class ThrottleMiddleware:
     def _apply_get_rate_limits(self, request):
         path = request.path_info
 
-        if re.match(r'^\d+$', path.strip('/')):
+        if re.match(r'^[A-Za-z0-9]{8}$', path.strip('/')):
             return self._check_limit(
                 request, 'ip', settings.RATE_LIMIT_VIEW_DETAIL, 'view_detail',
                 methods=('GET',),
