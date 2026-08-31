@@ -82,7 +82,7 @@ class RateLimitVoteTests(TestCase):
             file_id='test_file_id',
             video_url='https://example.com/video.mp4',
         )
-        self.url = reverse('videos:vote', args=[self.video.id])
+        self.url = reverse('videos:vote', args=[self.video.public_id])
 
     @override_settings(RATE_LIMIT_VOTE='3/m', RATE_LIMIT_UPLOAD='5/h', RATE_LIMIT_LOGIN='5/m', RATE_LIMIT_REGISTER='5/m')
     def test_vote_exceeds_limit_returns_429(self):

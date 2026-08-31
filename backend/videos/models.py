@@ -1,3 +1,5 @@
+import secrets
+
 from django.db import models
 from django.contrib.auth.models import User
 from .helpers import (
@@ -6,6 +8,12 @@ from .helpers import (
     get_thumbnail_url,
     add_image_watermark,
 )
+
+ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def generate_public_id(length=8):
+    return "".join(secrets.choice(ALPHABET) for _ in range(length))
 
 
 class VideoStatus(models.TextChoices):
@@ -65,6 +73,11 @@ class Video(models.Model):
     scanning_started_at = models.DateTimeField(null=True, blank=True)
     scan_duration_ms = models.PositiveIntegerField(null=True, blank=True)
 
+    public_id = models.CharField(
+        max_length=16,  # storage headroom, public contract is exactly 8 chars
+        unique=True,
+    )
+
     views = models.PositiveIntegerField(default=0)
     likes = models.PositiveIntegerField(default=0)
     dislikes = models.PositiveIntegerField(default=0)
@@ -77,6 +90,19 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = generate_public_id()
+        elif self.pk:
+            old = (
+                self.__class__.objects.filter(pk=self.pk)
+                .values_list("public_id", flat=True)
+                .first()
+            )
+            if old and old != self.public_id:
+                raise ValueError("public_id is immutable after first assignment")
+        super().save(*args, **kwargs)
 
     @property
     def display_thumbnail_url(self):
