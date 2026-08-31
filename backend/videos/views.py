@@ -1,27 +1,31 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from datetime import timedelta
 import logging
-
+import re
 from .models import Video, VideoLike, VideoView, VideoStatus
 from .forms import VideoUploadForm
 from .helpers import upload_thumbnail, delete_video
 from .quarantine import save_to_quarantine, delete_quarantine_file
 from .tasks import scan_video
 
+PUBLIC_ID_RE = re.compile(r"^[A-Za-z0-9]{8}$")
+
 logger = logging.getLogger("videos.upload")
 
 VIEW_DEDUP_HOURS = 24
 
 
-def video_detail(request, video_id):
-    video = get_object_or_404(Video.objects, id=video_id)
+def video_detail(request, public_id):
+    if not PUBLIC_ID_RE.match(public_id):
+        raise Http404
+    video = get_object_or_404(Video, public_id=public_id)
 
     # Streaming gate — only show fully scanned videos
     if video.status != VideoStatus.SAFE:
@@ -175,7 +179,7 @@ def video_upload(request):
 
             return JsonResponse({
                 "success": True,
-                "video_id": video.id,
+                "public_id": video.public_id,
                 "status": "pending",
                 "message": "Video uploaded successfully. Scanning in progress.",
             }, status=202)
@@ -219,8 +223,10 @@ def video_upload_page(request):
 
 @login_required
 @require_POST
-def delete_video(request, video_id):
-    video = get_object_or_404(Video, id=video_id, user=request.user)
+def delete_video(request, public_id):
+    if not PUBLIC_ID_RE.match(public_id):
+        raise Http404
+    video = get_object_or_404(Video, public_id=public_id, user=request.user)
 
     try:
         delete_video(video.file_id)
@@ -235,8 +241,10 @@ def delete_video(request, video_id):
 
 @login_required
 @require_POST
-def video_vote(request, video_id):
-    video = get_object_or_404(Video, id=video_id)
+def video_vote(request, public_id):
+    if not PUBLIC_ID_RE.match(public_id):
+        raise Http404
+    video = get_object_or_404(Video, public_id=public_id)
     vote_type = request.POST.get("vote")
 
     if vote_type not in ["like", "dislike"]:
@@ -283,11 +291,13 @@ def video_vote(request, video_id):
 
 @login_required
 @require_POST
-def upload_status(request, video_id):
+def upload_status(request, public_id):
     """Return the scan status for an upload."""
-    video = get_object_or_404(Video, id=video_id, user=request.user)
+    if not PUBLIC_ID_RE.match(public_id):
+        raise Http404
+    video = get_object_or_404(Video, public_id=public_id, user=request.user)
     return JsonResponse({
-        "video_id": video.id,
+        "public_id": video.public_id,
         "status": video.status,
         "status_display": video.get_status_display(),
         "scan_result": video.scan_result,
