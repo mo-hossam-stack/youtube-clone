@@ -33,7 +33,7 @@ Processing: {{ video.title }} - YouTube Clone
 
 <script>
 (function() {
-    const videoId = {{ video.id }};
+    const videoId = '{{ video.public_id }}';
     const statusText = document.getElementById('status-text');
     let pollCount = 0;
     const maxPolls = 120; // 10 minutes max
@@ -54,7 +54,7 @@ Processing: {{ video.title }} - YouTube Clone
         .then(data => {
             pollCount++;
             if (data.status === 'safe') {
-                window.location.href = `/{{ video.id }}`;
+                window.location.href = `/{{ video.public_id }}`;
             } else if (data.status === 'rejected' || data.status === 'failed') {
                 statusText.textContent = data.status_display || data.status;
                 statusText.style.color = '#ef4444';
