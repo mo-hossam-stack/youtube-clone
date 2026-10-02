@@ -10,26 +10,7 @@ from django.core.files.storage import FileSystemStorage
 logger = logging.getLogger("videos.upload")
 
 
-class QuarantineStorage(FileSystemStorage):
-    """Storage backend for quarantine files. Never exposed publicly."""
 
-    def __init__(self):
-        from django.conf import settings
-        quarantine_dir = str(settings.QUARANTINE_DIR)
-        super().__init__(
-            location=quarantine_dir,
-            base_url=None,
-            file_permissions_mode=0o600,
-        )
-
-    def url(self, name):
-        raise NotImplementedError(
-            "Quarantine files must never be served via public URL."
-        )
-
-
-def _get_storage():
-    return QuarantineStorage()
 
 
 def save_to_quarantine(file_obj, storage_name):
