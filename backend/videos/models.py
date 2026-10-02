@@ -128,13 +128,6 @@ class Video(models.Model):
             return ""
         return get_optimized_video_url(self.video_url)
 
-    @property
-    def quarantine_abs_path(self):
-        from pathlib import Path
-        from django.conf import settings
-        if not self.quarantine_path:
-            return None
-        return str(Path(str(settings.QUARANTINE_DIR)) / self.quarantine_path)
 
         
 
