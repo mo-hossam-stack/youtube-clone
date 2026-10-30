@@ -6,6 +6,7 @@ __pycache__
 db.sqlite3
 media
 staticfiles/
+backend/quarantine/
 
 docker-compose.override.yml
 
