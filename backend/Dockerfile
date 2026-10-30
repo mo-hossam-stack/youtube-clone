@@ -13,7 +13,8 @@ COPY backend/ backend/
 RUN pip install --no-cache-dir uv \
     && uv sync --no-dev --frozen
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1
 
 RUN DJANGO_SECRET_KEY=build-placeholder DJANGO_DEBUG=True \
     python backend/manage.py collectstatic --noinput --settings=config.settings
@@ -39,6 +40,7 @@ COPY --from=builder /app/backend/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app \
+    && mkdir -p /app/backend/quarantine \
     && chown -R app:app /app
 USER app
 
