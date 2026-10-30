@@ -23,6 +23,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - static_files:/app/staticfiles
+      - quarantine_data:/app/backend/quarantine
     healthcheck:
       test: ["CMD", "python", "-c", "import sys, urllib.request; urllib.request.urlopen('http://localhost:8000/health/'); sys.exit(0)"]
       interval: 30s
@@ -85,6 +86,8 @@ services:
     volumes:
       - ./backend:/app/backend
       - quarantine_data:/app/backend/quarantine
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
   clamav:
