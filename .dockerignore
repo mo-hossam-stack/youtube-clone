@@ -1,22 +1,23 @@
-.venv/
-.git/
-__pycache__/
-*.py[cod]
-.env
-.env.*
-!.env.example
+**/.venv/
+**/.git/
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+!**/.env.example
 
-.pytest_cache/
-.mypy_cache/
-htmlcov/
-.coverage
+**/.pytest_cache/
+**/.mypy_cache/
+**/htmlcov/
+**/.coverage
 
-db.sqlite3
-media/
-staticfiles/
+**/db.sqlite3
+**/media/
+**/staticfiles/
+**/quarantine/
 
 docs/
 .idea/
 .vscode/
 
-*.egg-info/
+**/*.egg-info/
