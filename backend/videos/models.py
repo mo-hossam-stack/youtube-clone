@@ -2,6 +2,7 @@ import secrets
 
 from django.db import models
 from django.contrib.auth.models import User
+from .constants import VIDEO_TITLE_MAX_LENGTH
 from .helpers import (
     get_optimized_video_url,
     get_streaming_url,
@@ -37,7 +38,7 @@ class ScanErrorCode(models.TextChoices):
 
 class Video(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="videos")
-    title = models.CharField(max_length=120)
+    title = models.CharField(max_length=VIDEO_TITLE_MAX_LENGTH)
     description = models.TextField(blank=True)
 
     original_filename = models.CharField(max_length=255, blank=True)
