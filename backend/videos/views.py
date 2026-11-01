@@ -9,6 +9,7 @@ from django.utils import timezone
 from datetime import timedelta
 import logging
 import re
+from .constants import VIDEO_TITLE_MAX_LENGTH
 from .models import Video, VideoLike, VideoView, VideoStatus
 from .forms import VideoUploadForm
 from .helpers import upload_thumbnail, delete_video
@@ -119,7 +120,7 @@ def video_upload(request):
                 errors.append(
                     f"{field}: {error}" if field != "__all__" else error
                 )
-        return JsonResponse({"success": False, "errors": errors})
+        return JsonResponse({"success": False, "errors": errors}, status=400)
 
     video_file = form.cleaned_data["video_file"]
     custom_thumbnail = request.POST.get("thumbnail_data", "")
@@ -218,7 +219,14 @@ def video_upload(request):
 
 @login_required
 def video_upload_page(request):
-    return render(request, "videos/upload.html", {"form": VideoUploadForm()})
+    return render(
+        request,
+        "videos/upload.html",
+        {
+            "form": VideoUploadForm(),
+            "title_max_length": VIDEO_TITLE_MAX_LENGTH,
+        },
+    )
 
 
 @login_required
