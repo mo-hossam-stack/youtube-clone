@@ -1,0 +1,263 @@
+{
+  "config": {
+    "title": {
+      "min": 3,
+      "max": 100
+    },
+    "file": {
+      "maxBytes": 104857600,
+      "maxSizeLabel": "100 MB",
+      "allowedExtensions": [
+        "mp4",
+        "webm",
+        "mov",
+        "avi"
+      ]
+    },
+    "messages": {
+      "title": {
+        "required": "Please enter a title.",
+        "min_length": "Title must be at least 3 characters.",
+        "max_length": "Title must be 100 characters or fewer (currently {length}).",
+        "invalid_characters": "Title cannot contain < or >.",
+        "control_characters": "Title contains invalid control characters."
+      },
+      "file": {
+        "required": "Please select a video file.",
+        "empty_file": "Uploaded file is empty.",
+        "file_too_large": "File is too large. Maximum allowed size is 100 MB.",
+        "invalid_extension": "File must be one of: mp4, webm, mov, avi."
+      }
+    }
+  },
+  "titleCases": [
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "normalized": "",
+      "length": 0,
+      "codes": [
+        "required"
+      ]
+    },
+    {
+      "name": "whitespace only",
+      "input": "   ",
+      "valid": false,
+      "normalized": "",
+      "length": 0,
+      "codes": [
+        "required"
+      ]
+    },
+    {
+      "name": "too short",
+      "input": "ab",
+      "valid": false,
+      "normalized": "ab",
+      "length": 2,
+      "codes": [
+        "min_length"
+      ]
+    },
+    {
+      "name": "short after trim",
+      "input": "  ab  ",
+      "valid": false,
+      "normalized": "ab",
+      "length": 2,
+      "codes": [
+        "min_length"
+      ]
+    },
+    {
+      "name": "minimum",
+      "input": "abc",
+      "valid": true,
+      "normalized": "abc",
+      "length": 3,
+      "codes": []
+    },
+    {
+      "name": "trims ends",
+      "input": "  hello  ",
+      "valid": true,
+      "normalized": "hello",
+      "length": 5,
+      "codes": []
+    },
+    {
+      "name": "maximum ascii",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": true,
+      "normalized": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "length": 100,
+      "codes": []
+    },
+    {
+      "name": "over maximum ascii",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": false,
+      "normalized": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "length": 101,
+      "codes": [
+        "max_length"
+      ]
+    },
+    {
+      "name": "maximum emoji code points",
+      "input": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "valid": true,
+      "normalized": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "length": 100,
+      "codes": []
+    },
+    {
+      "name": "over maximum emoji code points",
+      "input": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "valid": false,
+      "normalized": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "length": 101,
+      "codes": [
+        "max_length"
+      ]
+    },
+    {
+      "name": "combining characters compose",
+      "input": "ééé",
+      "valid": true,
+      "normalized": "ééé",
+      "length": 3,
+      "codes": []
+    },
+    {
+      "name": "family emoji counts code points",
+      "input": "👨‍👩‍👧‍👦",
+      "valid": true,
+      "normalized": "👨‍👩‍👧‍👦",
+      "length": 7,
+      "codes": []
+    },
+    {
+      "name": "supplementary code point",
+      "input": "𠮷野家",
+      "valid": true,
+      "normalized": "𠮷野家",
+      "length": 3,
+      "codes": []
+    },
+    {
+      "name": "angle brackets",
+      "input": "<script>",
+      "valid": false,
+      "normalized": "<script>",
+      "length": 8,
+      "codes": [
+        "invalid_characters"
+      ]
+    },
+    {
+      "name": "tab",
+      "input": "a\tb",
+      "valid": false,
+      "normalized": "a\tb",
+      "length": 3,
+      "codes": [
+        "control_characters"
+      ]
+    },
+    {
+      "name": "newline",
+      "input": "a\nbc",
+      "valid": false,
+      "normalized": "a\nbc",
+      "length": 4,
+      "codes": [
+        "control_characters"
+      ]
+    },
+    {
+      "name": "max wins before character checks",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa<",
+      "valid": false,
+      "normalized": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa<",
+      "length": 101,
+      "codes": [
+        "max_length"
+      ]
+    }
+  ],
+  "fileCases": [
+    {
+      "name": "missing",
+      "file": null,
+      "valid": false,
+      "codes": [
+        "required"
+      ]
+    },
+    {
+      "name": "empty",
+      "file": {
+        "name": "clip.mp4",
+        "size": 0
+      },
+      "valid": false,
+      "codes": [
+        "empty_file"
+      ]
+    },
+    {
+      "name": "too large",
+      "file": {
+        "name": "clip.mp4",
+        "size": 104857601
+      },
+      "valid": false,
+      "codes": [
+        "file_too_large"
+      ]
+    },
+    {
+      "name": "uppercase extension",
+      "file": {
+        "name": "CLIP.MP4",
+        "size": 10
+      },
+      "valid": true,
+      "codes": []
+    },
+    {
+      "name": "multiple dots",
+      "file": {
+        "name": "my.video.final.mp4",
+        "size": 10
+      },
+      "valid": true,
+      "codes": []
+    },
+    {
+      "name": "no extension",
+      "file": {
+        "name": "clip",
+        "size": 10
+      },
+      "valid": false,
+      "codes": [
+        "invalid_extension"
+      ]
+    },
+    {
+      "name": "wrong extension",
+      "file": {
+        "name": "clip.exe",
+        "size": 10
+      },
+      "valid": false,
+      "codes": [
+        "invalid_extension"
+      ]
+    }
+  ]
+}
