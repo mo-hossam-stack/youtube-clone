@@ -243,3 +243,58 @@ class RateLimitGETRequestsTests(TestCase):
         for _ in range(10):
             resp = self.client.get(url)
             self.assertNotEqual(resp.status_code, 429, "GET requests should not be rate limited")
+
+
+class UploadTitleValidationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username='titleuser', password='pass1234',
+        )
+        self.client.login(username='titleuser', password='pass1234')
+        self.url = reverse('videos:upload_submit')
+
+    def test_upload_page_exposes_upload_config(self):
+        resp = self.client.get(reverse('videos:upload'))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['title_max_length'], 100)
+        self.assertEqual(resp.context['upload_config']['title']['max'], 100)
+        self.assertNotContains(resp, 'maxlength="100"')
+        self.assertContains(resp, 'id="upload-config"')
+
+    def test_overlong_title_returns_structured_400(self):
+        resp = self.client.post(self.url, {"title": "ع" * 101})
+
+        self.assertEqual(resp.status_code, 400)
+        data = resp.json()
+        self.assertFalse(data["success"])
+        self.assertEqual(data["errors"]["title"][0]["code"], "max_length")
+        self.assertIn("100", data["errors"]["title"][0]["message"])
+        self.assertEqual(Video.objects.count(), 0)
+
+    def test_empty_title_returns_required_code(self):
+        resp = self.client.post(self.url, {"title": "   "})
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["errors"]["title"][0]["code"], "required")
+
+    def test_forbidden_title_characters_return_code(self):
+        resp = self.client.post(self.url, {"title": "<script>"})
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.json()["errors"]["title"][0]["code"],
+            "invalid_characters",
+        )
+
+    @override_settings(UPLOAD_REQUEST_MAX_BYTES=10)
+    def test_request_body_over_limit_returns_413(self):
+        resp = self.client.post(self.url, {}, CONTENT_LENGTH="11")
+
+        self.assertEqual(resp.status_code, 413)
+        self.assertEqual(
+            resp.json()["errors"]["__all__"][0]["code"],
+            "request_too_large",
+        )
+        self.assertEqual(Video.objects.count(), 0)
