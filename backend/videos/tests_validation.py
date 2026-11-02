@@ -1,12 +1,17 @@
 import io
+import json
 import os
 import subprocess
 import tempfile
+from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
+from .constants import VIDEO_TITLE_MAX_LENGTH, VIDEO_TITLE_MIN_LENGTH
+from .quarantine import save_to_quarantine
 from .validators import (
     compute_sha256,
     extract_video_metadata,
@@ -15,6 +20,17 @@ from .validators import (
     validate_file_size,
     validate_mime_type,
     validate_video_metadata,
+    normalize_title,
+    validate_video_title,
+)
+
+
+UPLOAD_VALIDATION_FIXTURE = json.loads(
+    (
+        Path(__file__).parent
+        / "tests_fixtures"
+        / "upload_validation_cases.json"
+    ).read_text(encoding="utf-8")
 )
 
 
@@ -388,6 +404,48 @@ class SaveTempUploadTests(TestCase):
         with save_temp_upload(f):
             pass
         self.assertEqual(f.tell(), 0)
+
+
+class TitleContractFixtureTests(TestCase):
+    def test_config_matches_backend_constants(self):
+        config = UPLOAD_VALIDATION_FIXTURE["config"]
+        self.assertEqual(config["title"]["min"], VIDEO_TITLE_MIN_LENGTH)
+        self.assertEqual(config["title"]["max"], VIDEO_TITLE_MAX_LENGTH)
+        self.assertEqual(config["file"]["maxBytes"], settings.UPLOAD_MAX_FILE_SIZE)
+
+    def test_shared_title_cases(self):
+        for case in UPLOAD_VALIDATION_FIXTURE["titleCases"]:
+            with self.subTest(case=case["name"]):
+                normalized = normalize_title(case["input"])
+                self.assertEqual(normalized, case["normalized"])
+                self.assertEqual(len(normalized), case["length"])
+                try:
+                    validate_video_title(case["input"])
+                except ValidationError as exc:
+                    codes = [exc.code]
+                else:
+                    codes = []
+                self.assertEqual(codes, case["codes"])
+
+
+class SaveToQuarantineTests(TestCase):
+    def test_partial_write_is_removed_on_failure(self):
+        class FailingFile(io.BytesIO):
+            def __init__(self):
+                super().__init__(b"ignored")
+                self.reads = 0
+
+            def read(self, size=-1):
+                self.reads += 1
+                if self.reads == 1:
+                    return b"partial"
+                raise OSError("disk full")
+
+        with tempfile.TemporaryDirectory() as quarantine_dir:
+            with override_settings(QUARANTINE_DIR=quarantine_dir):
+                with self.assertRaises(OSError):
+                    save_to_quarantine(FailingFile(), "clip.mp4")
+                self.assertEqual(list(Path(quarantine_dir).iterdir()), [])
 
 
 class FullPipelineTests(TestCase):
