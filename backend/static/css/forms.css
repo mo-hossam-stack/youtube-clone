@@ -74,3 +74,37 @@
     font-size: 0.8rem;
 }
 
+
+.form-input.invalid {
+    border-color: var(--error-red);
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+}
+
+.field-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.field-meta .invalid {
+    color: var(--error-red);
+}
+
+.field-error {
+    min-height: 1em;
+    margin: 0;
+    color: var(--error-red);
+    font-size: 0.8rem;
+}
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
