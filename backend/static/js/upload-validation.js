@@ -44,7 +44,7 @@ export function validateTitle(value, config) {
             length,
             errors: [makeError(
                 "max_length",
-                messages.max_length.replace("{length}", String(length)),
+                messages.max_length,
             )],
         };
     }

@@ -49,7 +49,7 @@ def validate_video_title(value):
         )
     if length > VIDEO_TITLE_MAX_LENGTH:
         raise ValidationError(
-            errors.TITLE_MESSAGES[errors.MAX_LENGTH].format(length=length),
+            errors.TITLE_MESSAGES[errors.MAX_LENGTH],
             code=errors.MAX_LENGTH,
         )
     if any(char in title for char in VIDEO_TITLE_FORBIDDEN_CHARS):
