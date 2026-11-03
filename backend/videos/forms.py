@@ -2,26 +2,39 @@ from django import forms
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 
+from . import errors
 from .validators import (
     compute_sha256,
     extract_video_metadata,
+    normalize_title,
     sanitize_filename,
     save_temp_upload,
     validate_file_size,
     validate_mime_type,
     validate_video_metadata,
+    validate_video_title,
 )
 
 
+class NormalizedCharField(forms.CharField):
+    def to_python(self, value):
+        if isinstance(value, str):
+            value = normalize_title(value)
+        return super().to_python(value)
+
+
 class VideoUploadForm(forms.Form):
-    title = forms.CharField( 
-        max_length=200,
+    title = NormalizedCharField(
+        validators=[validate_video_title],
+        error_messages={
+            "required": errors.TITLE_MESSAGES[errors.REQUIRED],
+        },
         widget=forms.TextInput(
             attrs={
                 "class": "form-input",
-                "placeholder": "Enter ur title here"
+                "placeholder": "Enter your title here",
             }
-        )
+        ),
     )
     description = forms.CharField(
         required=False,
@@ -75,13 +88,3 @@ class VideoUploadForm(forms.Form):
         video.sha256_hash = sha256
         video.metadata = metadata
         return video
-    
-    def clean_title(self):
-        title = self.cleaned_data["title"].strip()
-
-        if len(title) < 3:
-            raise forms.ValidationError(
-                
-            )
-
-        return title

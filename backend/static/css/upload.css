@@ -78,3 +78,14 @@
 #thumbPreview.visible {
     display: block !important;
 }
+
+#id_video_file:focus-visible + .file-input-wrapper,
+#customThumbnail:focus-visible + .file-input-wrapper {
+    outline: 3px solid var(--accent-red);
+    outline-offset: 3px;
+}
+
+.btn-submit:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

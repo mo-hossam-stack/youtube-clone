@@ -34,12 +34,22 @@ def save_to_quarantine(file_obj, storage_name):
 
     full_path = quarantine_dir / quarantine_name
 
-    with open(full_path, "wb") as f:
-        while True:
-            chunk = file_obj.read(8192)
-            if not chunk:
-                break
-            f.write(chunk)
+    try:
+        with open(full_path, "wb") as f:
+            while True:
+                chunk = file_obj.read(8192)
+                if not chunk:
+                    break
+                f.write(chunk)
+    except Exception:
+        try:
+            full_path.unlink(missing_ok=True)
+        except OSError:
+            logger.exception(
+                "quarantine.partial_delete_failed",
+                extra={"quarantine_path": quarantine_name},
+            )
+        raise
 
     file_obj.seek(0)
 

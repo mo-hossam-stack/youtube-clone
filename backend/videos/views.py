@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -9,11 +10,12 @@ from django.utils import timezone
 from datetime import timedelta
 import logging
 import re
+from . import errors
+from .constants import VIDEO_TITLE_MAX_LENGTH, VIDEO_TITLE_MIN_LENGTH
 from .models import Video, VideoLike, VideoView, VideoStatus
 from .forms import VideoUploadForm
-from .helpers import upload_thumbnail, delete_video
-from .quarantine import save_to_quarantine, delete_quarantine_file
-from .tasks import scan_video
+from .helpers import delete_video
+from .services.upload import create_video_from_upload
 
 PUBLIC_ID_RE = re.compile(r"^[A-Za-z0-9]{8}$")
 
@@ -108,117 +110,126 @@ def channel_videos(request, username):
     return render(request, "videos/channel.html", {"videos": videos, "channel_name": username})
 
 
+def _content_length(request):
+    try:
+        return int(request.META.get("CONTENT_LENGTH") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _upload_config():
+    max_file_mb = round(settings.UPLOAD_MAX_FILE_SIZE / (1024 * 1024))
+    return {
+        "title": {
+            "min": VIDEO_TITLE_MIN_LENGTH,
+            "max": VIDEO_TITLE_MAX_LENGTH,
+        },
+        "file": {
+            "maxBytes": settings.UPLOAD_MAX_FILE_SIZE,
+            "maxSizeLabel": f"{max_file_mb} MB",
+            "allowedExtensions": settings.UPLOAD_ALLOWED_EXTENSIONS,
+        },
+        "messages": {
+            "title": errors.TITLE_MESSAGES,
+            "file": {
+                errors.REQUIRED: "Please select a video file.",
+                errors.EMPTY_FILE: "Uploaded file is empty.",
+                errors.FILE_TOO_LARGE: (
+                    f"File is too large. Maximum allowed size is "
+                    f"{max_file_mb} MB."
+                ),
+                errors.INVALID_EXTENSION: (
+                    "File must be one of: "
+                    f"{', '.join(settings.UPLOAD_ALLOWED_EXTENSIONS)}."
+                ),
+            },
+        },
+    }
+
+
 @login_required
 @require_POST
 def video_upload(request):
+    if _content_length(request) > settings.UPLOAD_REQUEST_MAX_BYTES:
+        return JsonResponse(
+            {
+                "success": False,
+                "errors": errors.error_payload(
+                    errors.REQUEST_TOO_LARGE,
+                    "Request is too large. Please upload a smaller video.",
+                ),
+            },
+            status=413,
+        )
+
     form = VideoUploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        errors = []
-        for field, field_errors in form.errors.items():
-            for error in field_errors:
-                errors.append(
-                    f"{field}: {error}" if field != "__all__" else error
-                )
-        return JsonResponse({"success": False, "errors": errors})
-
-    video_file = form.cleaned_data["video_file"]
-    custom_thumbnail = request.POST.get("thumbnail_data", "")
-    quarantine_path = None
+        return JsonResponse(
+            {"success": False, "errors": errors.form_errors_payload(form)},
+            status=400,
+        )
 
     try:
-        with transaction.atomic():
-            # Save to quarantine (local disk, not publicly accessible)
-            quarantine_path = save_to_quarantine(video_file, video_file.storage_name)
-
-            metadata = video_file.metadata
-            video = Video.objects.create(
-                user=request.user,
-                title=form.cleaned_data["title"],
-                description=form.cleaned_data["description"],
-                original_filename=video_file.name,
-                storage_filename=video_file.storage_name,
-                original_file_size=video_file.size,
-                sha256_hash=video_file.sha256_hash,
-                container=metadata["container"],
-                codec=metadata["codec"],
-                duration=metadata["duration"],
-                width=metadata["width"],
-                height=metadata["height"],
-                status=VideoStatus.PENDING,
-                quarantine_path=quarantine_path,
-            )
-
-            # Upload thumbnail synchronously (not a security concern)
-            if custom_thumbnail and custom_thumbnail.startswith("data:image"):
-                try:
-                    base_name = video_file.storage_name.rsplit(".", 1)[0]
-                    thumb_result = upload_thumbnail(
-                        file_data=custom_thumbnail,
-                        file_name=base_name + "_thumb.jpg",
-                    )
-                    video.thumbnail_url = thumb_result["url"]
-                    video.save(update_fields=["thumbnail_url"])
-                except Exception:
-                    logger.warning(
-                        "Thumbnail upload failed",
-                        extra={"upload_filename": video_file.name},
-                    )
-
-            # Dispatch async virus scan
-            scan_video.delay(video.id)
-
-            logger.info(
-                "upload.queued",
-                extra={
-                    "video_id": video.id,
-                    "user_id": request.user.id,
-                    "file_size": video.original_file_size,
-                    "sha256": video.sha256_hash[:12],
-                },
-            )
-
-            return JsonResponse({
-                "success": True,
-                "public_id": video.public_id,
-                "status": "pending",
-                "message": "Video uploaded successfully. Scanning in progress.",
-            }, status=202)
-
-    except ValidationError as e:
-        # Clean up quarantine file if it was written before the error
-        if quarantine_path:
-            delete_quarantine_file(quarantine_path)
+        video = create_video_from_upload(
+            user=request.user,
+            cleaned_data=form.cleaned_data,
+            video_file=form.cleaned_data["video_file"],
+            custom_thumbnail=request.POST.get("thumbnail_data", ""),
+        )
+    except ValidationError as exc:
         logger.warning(
             "Upload rejected",
             extra={
-                "reason": str(e),
-                "upload_filename": video_file.name,
-                "filesize": video_file.size,
+                "reason": str(exc),
+                "upload_filename": form.cleaned_data["video_file"].name,
+                "filesize": form.cleaned_data["video_file"].size,
                 "client_ip": request.META.get("REMOTE_ADDR"),
             },
         )
-        return JsonResponse({"success": False, "error": str(e)})
-
+        return JsonResponse(
+            {"success": False, "errors": errors.validation_error_payload(exc)},
+            status=400,
+        )
     except Exception:
-        if quarantine_path:
-            delete_quarantine_file(quarantine_path)
         logger.exception(
             "Upload failed",
             extra={
-                "upload_filename": video_file.name,
-                "filesize": video_file.size,
+                "upload_filename": form.cleaned_data["video_file"].name,
+                "filesize": form.cleaned_data["video_file"].size,
                 "user_id": request.user.id,
                 "client_ip": request.META.get("REMOTE_ADDR"),
             },
         )
         return JsonResponse(
-            {"success": False, "error": "Upload failed. Please try again."}
+            {
+                "success": False,
+                "errors": errors.error_payload(
+                    errors.UPLOAD_FAILED,
+                    "Upload failed. Please try again.",
+                ),
+            },
+            status=500,
         )
+
+    return JsonResponse({
+        "success": True,
+        "public_id": video.public_id,
+        "status": "pending",
+        "message": "Video uploaded successfully. Scanning in progress.",
+    }, status=202)
 
 
 @login_required
 def video_upload_page(request):
-    return render(request, "videos/upload.html", {"form": VideoUploadForm()})
+    return render(
+        request,
+        "videos/upload.html",
+        {
+            "form": VideoUploadForm(),
+            "title_max_length": VIDEO_TITLE_MAX_LENGTH,
+            "upload_config": _upload_config(),
+        },
+    )
 
 
 @login_required
