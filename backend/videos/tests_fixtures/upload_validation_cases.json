@@ -18,7 +18,7 @@
       "title": {
         "required": "Please enter a title.",
         "min_length": "Title must be at least 3 characters.",
-        "max_length": "Title must be 100 characters or fewer (currently {length}).",
+        "max_length": "Title must be 100 characters or fewer.",
         "invalid_characters": "Title cannot contain < or >.",
         "control_characters": "Title contains invalid control characters."
       },
