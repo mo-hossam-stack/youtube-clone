@@ -40,7 +40,7 @@
             </div>
 
             <div class="form-group">
-                <label for="id_title">Title</label>
+                <label for="id_title">Title <span class="required-mark" aria-hidden="true">*</span></label>
                 <input type="text" name="title" id="id_title" class="form-input" placeholder="Enter video title" value="{{ form.title.value|default:'' }}" aria-describedby="titleCounter titleError" required/>
                 <div class="field-meta">
                     <span class="help-text" id="titleCounter">0/{{ upload_config.title.max }}</span>
@@ -54,7 +54,7 @@
             </div>
 
             <div class="form-group">
-                <label for="id_video_file">Video File</label>
+                <label for="id_video_file">Video File <span class="required-mark" aria-hidden="true">*</span></label>
                 <input type="file" name="video_file" id="id_video_file" class="visually-hidden" accept="video/*" aria-describedby="videoFileHelp videoFileError" required/>
                 <label class="file-input-wrapper" for="id_video_file">
                     <span id="video-label">Click to select a video file</span>

@@ -108,3 +108,8 @@
     white-space: nowrap !important;
     border: 0 !important;
 }
+
+.required-mark {
+    color: var(--accent-red);
+    margin-left: 3px;
+}
