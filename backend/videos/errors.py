@@ -22,8 +22,7 @@ TITLE_MESSAGES = {
     REQUIRED: "Please enter a title.",
     MIN_LENGTH: f"Title must be at least {VIDEO_TITLE_MIN_LENGTH} characters.",
     MAX_LENGTH: (
-        f"Title must be {VIDEO_TITLE_MAX_LENGTH} characters or fewer "
-        "(currently {length})."
+        f"Title must be {VIDEO_TITLE_MAX_LENGTH} characters or fewer."
     ),
     INVALID_CHARACTERS: "Title cannot contain < or >.",
     CONTROL_CHARACTERS: "Title contains invalid control characters.",
