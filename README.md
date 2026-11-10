@@ -395,38 +395,73 @@ This defense-in-depth means a user can't bypass browser validation and send a ma
 
 ## Quick Start
 
-### One-command dev runner (recommended)
+### Prerequisites
 
-`scripts/dev.sh` starts everything you need and tears it down when you quit:
+- [uv](https://docs.astral.sh/uv/) for Python 3.13 and dependencies
+- Docker with the Compose plugin (Postgres, Redis, ClamAV)
+- Node.js 20+ for the JavaScript tests
+- GNU Make
+
+### Setup
 
 ```bash
 git clone https://github.com/mo-hossam-stack/youtube-clone.git
 cd youtube-clone
-uv sync
-cp backend/.env.example backend/.env   # Add your ImageKit credentials
-./scripts/dev.sh                       # starts ClamAV + runs Django
+make setup
 ```
 
-What it does:
+`make setup` is idempotent. It:
 
-- Starts the ClamAV virus scanner (`docker compose up -d clamav`) — required, uploads fail with "Failed — Infrastructure Error" if it's down.
-- Runs Django with `.venv/bin/python backend/manage.py runserver`.
-- Stops ClamAV when you exit (`Ctrl+C`), freeing port `3310` so other projects can use it.
+- creates `backend/.env` from the example and generates `DJANGO_SECRET_KEY`
+- installs the locked Python dependencies with `uv sync --frozen`
+- starts Postgres, Redis and ClamAV in Docker and waits for ClamAV
+- applies database migrations
+- warns if the ImageKit keys are still empty
 
-> First run: ClamAV downloads its virus signature database (takes a few minutes). Wait until `docker compose exec clamav clamdscan --ping` returns `PONG` before uploading.
-
-Docker is required for the scanner. On Linux, if `docker` commands fail with a permission error, either run through sudo or add your user to the docker group once:
-`sudo usermod -aG docker $USER` (then log out/in).
-
-### Manual start (no scanner)
+Add your ImageKit keys to `backend/.env`, then start development:
 
 ```bash
-git clone https://github.com/mo-hossam-stack/youtube-clone.git
-cd youtube-clone
-uv sync
-cp backend/.env.example backend/.env   # Add your values
-cd backend && python manage.py makemigrations && python manage.py migrate
-python manage.py runserver
+make dev
+```
+
+This runs Django with hot reload and a Celery worker on the host, using Postgres,
+Redis and ClamAV from Docker. Uploads return immediately; scanning and ImageKit
+upload happen in the worker. `Ctrl+C` stops Django and the worker; the Docker
+infrastructure keeps running (use `make down` to stop it).
+
+> First run: ClamAV downloads its virus signature database (takes a few minutes).
+> `make dev` and `make setup` wait until ClamAV answers `PONG` before continuing.
+
+### Other commands
+
+```bash
+make test             # Python tests (SQLite/eager) + JavaScript tests
+make check            # Django checks + migration drift
+make dev-lite         # SQLite + eager Celery + ClamAV only
+make worker           # run a host Celery worker separately
+make migrate          # apply migrations
+make shell            # Django shell
+make superuser        # create an admin user
+make cleanup          # clean expired quarantine files
+make doctor           # diagnose tooling and configuration
+make down             # stop containers (volumes kept)
+make clean            # stop containers and remove local images
+make clean-all        # destructive: also delete volumes and local dev data
+make up               # build and run the whole stack in Docker
+```
+
+`make test` needs neither Docker nor ImageKit credentials. `make test-integration`
+uses real Postgres, Redis and ClamAV with a real Celery worker and a mocked
+ImageKit call.
+
+### Manual start (without Make)
+
+```bash
+uv sync --frozen
+cp backend/.env.example backend/.env   # Add your ImageKit credentials
+docker compose up -d --wait postgres redis clamav
+uv run --frozen python backend/manage.py migrate
+uv run --frozen python backend/manage.py runserver
 ```
 
 Visit **http://127.0.0.1:8000** — upload a video, watch it stream with adaptive bitrate, and engage with likes and views.
