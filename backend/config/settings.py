@@ -166,7 +166,14 @@ if REDIS_URL:
 CELERY_BROKER_URL = os.environ.get(
     "CELERY_BROKER_URL", REDIS_URL or "redis://localhost:6379/1"
 )
-CELERY_RESULT_BACKEND = REDIS_URL or "redis://localhost:6379/2"
+
+# Keep task results out of the cache/session database (db 0).
+_default_result_backend = "redis://localhost:6379/2"
+if REDIS_URL:
+    _default_result_backend = f"{REDIS_URL.rsplit('/', 1)[0]}/2"
+CELERY_RESULT_BACKEND = (
+    os.environ.get("CELERY_RESULT_BACKEND") or _default_result_backend
+    )
 
 # Dev: with no Redis, run tasks synchronously in-process (no broker/worker needed).
 # Prod sets REDIS_URL, so eager stays off there.
