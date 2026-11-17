@@ -4,6 +4,7 @@ SHELL := /usr/bin/env bash
 
 ENV_FILE ?= backend/.env
 MODE ?= dev
+ARGS ?=
 COMPOSE ?= docker compose --env-file $(ENV_FILE)
 PY := uv run --frozen python
 MANAGE := $(PY) backend/manage.py
@@ -11,7 +12,7 @@ EMPTY_ENV := DATABASE_URL= REDIS_URL= CELERY_BROKER_URL= CELERY_RESULT_BACKEND=
 
 export UV_PROJECT_ENVIRONMENT := $(CURDIR)/.venv
 
-.PHONY: help doctor env sync setup dev dev-lite worker migrate makemigrations \
+.PHONY: help doctor env sync setup run dev-lite worker migrate makemigrations \
 	shell superuser cleanup check test test-py test-js test-integration \
 	infra-up clamav-wait up down clean clean-all logs ps
 
@@ -34,11 +35,14 @@ setup: ## One-time onboarding: env, dependencies, infrastructure, migrations
 	@$(MAKE) migrate
 	@$(MAKE) doctor MODE=dev
 	@echo ""
-	@echo "Setup complete. Next: add your ImageKit keys to $(ENV_FILE), then run 'make dev'."
+	@echo "Setup complete. Next: add your ImageKit keys to $(ENV_FILE), then run 'make run'."
 
-run: ## Run Django + Celery on the host with Postgres, Redis and ClamAV in Docker
+run: ## Run the whole app isolated in Docker (builds, migrates and starts web, worker, Postgres, Redis, ClamAV)
 	@$(MAKE) env
-	@./scripts/dev.sh
+	@$(COMPOSE) up -d --build --force-recreate
+	@echo ""
+	@echo "==> App at http://localhost:8000 (first build takes a few minutes)"
+	@echo "==> Follow with 'make logs', stop with 'make down'"
 
 dev-lite: ## Run Django on SQLite with eager Celery and ClamAV only
 	@$(MAKE) env
@@ -100,7 +104,7 @@ clamav-wait: ## Wait until ClamAV responds to ping
 	@timeout 900 bash -c 'until $(COMPOSE) exec -T clamav clamdscan --ping 1 >/dev/null 2>&1; do sleep 5; done' \
 		|| { echo "ClamAV did not become ready. Check: $(COMPOSE) logs clamav" >&2; exit 1; }
 
-up: ## Build and run the whole stack in Docker (hardened in Phase 2)
+up: ## Like make run, but without auto-creating backend/.env
 	@$(COMPOSE) up -d --build
 
 down: ## Stop and remove containers (volumes are kept)
